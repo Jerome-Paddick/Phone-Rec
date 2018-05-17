@@ -1,0 +1,241 @@
+from selenium import webdriver # Website Automation
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support.select import Select
+from selenium.webdriver.common.keys import Keys
+
+import pywinauto
+import datetime
+import os
+import sys
+import shutil
+import time
+import zipfile
+import subprocess
+
+### Tendai Data
+# https://www.unlimitedhorizon.co.uk/webapp/advancedstatistics
+# S:\Databases and Electronic Reporting\7. Restricted Data\Unity [Phones]\Incoming Call Data
+# Tendai = Ext2182@pharsafer.com
+# 9:30 - 6:30 Sun - Fri
+# Type - Inbound
+# Scope - Both
+
+
+#  #########################IMP#######################################
+# With Chrome, files which have not finished downloading have the extension .crdownload. If you set your download
+# directory properly, then you can wait until the file that you want no longer has this extension. In principle,
+# this is not much different to waiting for file to exist (as suggested by alecxe) - but at least you can monitor
+# progress in this way.
+#  #########################IMP#######################################
+
+print("program initiated: Please dont download any additional files while it runs")
+
+
+def newest(path):
+    files = os.listdir(path)
+    paths = [os.path.join(path, basename) for basename in files]
+    return max(paths, key=os.path.getctime)
+
+
+# downloads folder
+before = os.listdir(os.environ['USERPROFILE'] + '\\Downloads')
+# Find a week ago sunday
+DAT = datetime.datetime.now().date()
+idx = DAT.weekday()
+
+
+while idx != 6:
+    DAT = DAT - datetime.timedelta(days=1)
+    idx = (DAT.weekday())
+
+SrtDAT = str(DAT - datetime.timedelta(days=7))
+EndDAT = str(DAT)
+SrtDAT_2 = str(DAT - datetime.timedelta(days=9))
+EndSat = str(DAT - datetime.timedelta(days=1))
+
+print("run dates:  " + SrtDAT + " - " + EndDAT)
+
+# get website
+chrome_options = Options()
+# chrome_options.add_argument("disable-infobars")
+# chrome_options.add_argument("--disable-infobars")
+# chrome_options.add_argument("download.default_directory=C:/Downloads")
+driver = webdriver.Chrome(chrome_options=chrome_options)
+#  driver.set_window_size(0, 0)
+driver.get("https://www.unlimitedhorizon.co.uk/webapp/signin")
+
+driver.find_element_by_name('username').send_keys('')
+driver.find_element_by_name('password').send_keys('')
+driver.find_element_by_name(':submit').click()
+# if password expiry page]
+try:
+    driver.find_element_by_link_text('Login normally and reset your password later').click()
+except NoSuchElementException:
+    pass
+driver.find_element_by_xpath("//a[@class='cwallowcookies']").click()
+
+###############################
+
+lastSat = str(DAT - datetime.timedelta(days=8))
+
+
+LIST = (["Apotex           ", "Apotex", "apotex@pharsafer.com"],
+        ["Combe            ", "Combe", "combequeue@pharsafer.com"],
+        ["Medical Info     ", "Med Info", "medicalinfomationqueue@pharsafer.com"],
+        ["Tendai (Outgoing)", "Tendai", "Ext2182@pharsafer.com"],
+        ["Zambon Queue     ", "Zambon", "zambonqueue@pharsafer.com"])
+
+def move_download(FPATH, zip=0):
+    global change, after
+    x = 1
+    change = []
+    after = os.listdir(os.environ['USERPROFILE'] + '\\Downloads')
+    while len(change) == 0:
+        after = os.listdir(os.environ['USERPROFILE'] + '\\Downloads')
+        change = set(after) - set(before)
+        # print("change", len(change))
+        x += 1
+        # print(x)
+        time.sleep(0.2)
+        if x == 50:
+            print("File Already Downloaded?")
+            break
+    if len(change) == 1:
+        x = 1
+        while 1:  # 10 mins
+            while 1:
+                try:
+                    PATH = newest(os.environ['USERPROFILE'] + '\\Downloads')
+                    By = round(os.path.getsize(PATH))
+                    break
+                except FileNotFoundError:
+                    time.sleep(0.2)
+            if PATH.find(".crdownload") == -1 and PATH.find(".tmp") == -1:
+                break
+            if len(str(By)) < 3:
+                print(By, "b")
+            elif len(str(By)) < 6:
+                print(round(By / 10 ** 3), "kb")
+            elif len(str(By)) < 9:
+                print(round(By / 10 ** 6), "Mb")
+            elif len(str(By)) < 12:
+                print(round(By / 10 ** 9), "Gb")
+            time.sleep(0.5)
+            x += 1
+            if x == (1200):
+                sys.exit("file download issue")
+        file_name = newest(os.environ['USERPROFILE'] + '\\Downloads')
+        print(file_name)
+        filePath = "S:\\Databases and Electronic Reporting\\7. Restricted Data\\Unity [Phones]\\" + FPATH
+        if zip == 1:
+            zip_ref = zipfile.ZipFile(file_name, 'r')
+            zip_ref.extractall(filePath)
+            zip_ref.close()
+            print("File Extracted: ")
+        else:
+            shutil.copy(file_name, filePath)
+            print("File copied to folder")
+        # shutil.copy(file_name, os.path.dirname(sys.argv[0]) + "\\Call Recordings\\Calls From " + SrtDAT + " - " + EndDAT + " Auto")
+
+
+for listObj in LIST:
+    driver.get("https://www.unlimitedhorizon.co.uk/webapp/advancedstatistics")
+    sDate = driver.find_element(By.NAME, "startDate.date")
+    sDate.clear()
+    sDate.send_keys(lastSat)
+    eDate = driver.find_element(By.NAME, "endDate.date")
+    eDate.clear()
+    eDate.send_keys(EndSat)
+    searchUser = driver.find_element(By.NAME,"userId:wrap:field")
+    searchUser.clear()
+    searchUser.send_keys(listObj[2])
+    driver.find_element(By.NAME,"search").click()
+    x = 1
+    # (By.Link_TEXT,"1917Ripley")
+    while 1:
+        try:
+            # print(x)
+            driver.find_element(By.CLASS_NAME,"even")
+            driver.find_element(By.XPATH, "//a[@class ='linkButton two']").click()
+            move_download(" - ".join(["Incoming Call Data\\" + listObj[1], str(lastSat), str(EndSat) + ".csv"]))
+            before = os.listdir(os.environ['USERPROFILE'] + '\\Downloads')
+            print(listObj[0], "Call Data Downloaded")
+            break
+        except NoSuchElementException:
+            time.sleep(0.2)
+            if x == 100:
+                print("Calls for " + listObj[1] + " not found")
+                break
+            x += 1
+
+
+before = os.listdir(os.environ['USERPROFILE'] + '\\Downloads')
+
+# ##############################
+# driver.get("https://www.unlimitedhorizon.co.uk/webapp/callrecording/bulkdownload")
+# # driver.find_element_by_link_text('Recorded Calls').click()
+# # driver.find_element_by_link_text('Bulk Call Recording').click()
+# driver.find_element_by_name('mainpanel:startDate').send_keys(SrtDAT)
+# driver.find_element_by_name('mainpanel:endDate').send_keys(EndDAT)
+# driver.find_element_by_name('download').click()
+# time.sleep(1)
+# move_download("Call Recordings\\Calls From " + SrtDAT + " - " + EndDAT + " Auto",1)
+#
+#
+#
+# # # try:
+# # app = pywinauto.application.Application()
+# # app.connect(class_name='ConsoleWindowClass')
+# # window = app.window(class_name='ConsoleWindowClass')
+# # window.setFocus()
+# # # except:
+# # #     pass
+# subprocess.Popen('C:\Windows\EXPLORER.EXE /n /cwd="' + "S:\\Databases and Electronic Reporting\\7. Restricted Data"
+#                                                            "\\Unity [Phones]\\Call Recordings" + '"')
+#
+# asdf = input("Has the File Been Downloaded (y/n):  ")
+# if asdf.lower() == "y":
+#     print("continuing program")
+# else:
+#     print("code terminated")
+#     sys.exit()
+#
+# LIST = ("Apotex           ", "Combe            ", "Medical Info     ", "Tendai (Outgoing)", "Zambon Queue     ")
+# # x = 1 to 5
+# for x in range(1, 6):
+#     WebDriverWait(driver, 40).until(EC.element_to_be_clickable((By.LINK_TEXT, "Recorded Calls"))).click()
+#     driver.find_element_by_link_text('Call Recording').click()
+# # print(driver.find_elements_by_xpath("//tbody/tr[" + str(x) + "]/td[1]/span"))
+#     driver.find_element_by_xpath("//table/tbody/tr[" + str(x) + "]/td[5]").click()
+#     WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.NAME, "startDate")))
+#     driver.find_element_by_xpath("//div[5]/span/span/a[@class='selectBox']/span").click()
+#     driver.find_element_by_link_text("100").click()
+#     WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.NAME, "startDate"))).clear()
+#     driver.find_element_by_name("startDate").send_keys(SrtDAT_2)
+#     driver.find_element_by_name("endDate").clear()
+#     driver.find_element_by_name("endDate").send_keys(EndDAT)
+#     E_Rads = driver.find_elements_by_xpath("//div/form/a[@class='radioWrap']")
+#     if x == 4:
+#         E_Rads[1].click()
+#     else:
+#         E_Rads[0].click()
+#     driver.find_element_by_name("search").click()
+#     try:
+#         time.sleep(10)
+#         driver.find_element_by_xpath("//table/thead/tr/th[1]/span").click()
+#         driver.find_element_by_name("content:deleteSelected").click()
+#         time.sleep(2)
+#         driver.find_element_by_css_selector(
+#             '.buttonBlock > button[name="confirmMW:content:confirmForm:confirmButtons:confirm"]').click()
+#         time.sleep(15)
+#         print(LIST[x - 1] + ": Calls Deleted")
+#     except NoSuchElementException:
+#         print(LIST[x - 1] + ": No Calls to delete")
+#         pass
+#
+# print("Finished Run")
