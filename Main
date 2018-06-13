@@ -201,12 +201,12 @@ move_download("Call Recordings\\Calls From " + SrtDAT + " - " + EndDAT + " Auto"
 subprocess.Popen('C:\Windows\EXPLORER.EXE /n /cwd="' + "S:\\Databases and Electronic Reporting\\7. Restricted Data"
                                                            "\\Unity [Phones]\\Call Recordings" + '"')
 
-asdf = input("Has the File Been Downloaded (y/n):  ")
-if asdf.lower() == "y":
-    print("continuing program")
-else:
-    print("code terminated")
-    sys.exit()
+#  asdf = input("Has the File Been Downloaded (y/n):  ")
+#  if asdf.lower() == "y":
+#      print("continuing program")
+#  else:
+#      print("code terminated")
+#      sys.exit()
 
 LIST = ("Apotex", "Combe", "Medical Info", "Tendai (Out)", "Zambon Queue")
 # x = 1 to 5
